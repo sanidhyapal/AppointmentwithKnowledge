@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "254291049618",
+    "firebase_url": "https://awkward-2e254.firebaseio.com",
+    "project_id": "awkward-2e254",
+    "storage_bucket": "awkward-2e254.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254291049618:android:52f18df423a15aa8",
+        "android_client_info": {
+          "package_name": "sanidhya.academic.com.appointmentwithknowledge"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "254291049618-3iluad2jklh6dvuer4up26m5vmgv1dmj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "sanidhya.academic.com.appointmentwithknowledge",
+            "certificate_hash": "56aa66165fa5b04da2b680413cb14f35b69fbc5a"
+          }
+        },
+        {
+          "client_id": "254291049618-bgjt1bgol5ml2f2ksim142vknbsrvd50.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlAJfAB4DUkMZfMbt1Hg1GYq8MdKOXnk4"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "254291049618-bgjt1bgol5ml2f2ksim142vknbsrvd50.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
