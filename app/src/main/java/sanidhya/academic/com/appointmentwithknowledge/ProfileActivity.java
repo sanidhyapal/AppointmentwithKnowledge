@@ -1,7 +1,6 @@
 package sanidhya.academic.com.appointmentwithknowledge;
 
 
-import android.Manifest;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -12,27 +11,25 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Parcelable;
 import android.provider.MediaStore;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.facebook.login.LoginManager;
-import com.facebook.login.widget.LoginButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserInfo;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.squareup.picasso.Picasso;
+import com.theartofdev.edmodo.cropper.CropImage;
+import com.theartofdev.edmodo.cropper.CropImageView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +40,6 @@ import sanidhya.academic.com.appointmentwithknowledge.model.Tutor;
 public class ProfileActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final int PICK_IMAGE_REQUEST_CODE = 1;
-    private static final int MY_PERMISSIONS_REQUEST_EXTERNAL_STORAGE =244;
     private TextView emailTV;
     private EditText nameET;
     private EditText contactNoET;
@@ -54,7 +50,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
     private DatabaseReference reference;
     private ImageView profilePictureIV;
     private Button imageChooser;
-    private Uri filePath;
+    private Uri imageHold=null;
     private Uri outputFileUri;
     private FirebaseUser user;
     char providerFlag;
@@ -107,99 +103,66 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     public void onClick(View v) {
 
-        if (v == saveB) {
-            String name = nameET.getText().toString().trim();
-            String contactNo = contactNoET.getText().toString().trim();
-            String designation = designationET.getText().toString().trim();
-            if (user != null) {
-                Tutor employee = new Tutor(user.getUid(), name, user.getEmail(), "", contactNo, "", designation);
-                reference.child(user.getUid()).setValue(employee);
-
-                Toast.makeText(this, "Information Saved!!", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Retry signing in!!", Toast.LENGTH_SHORT).show();
-                finish();
-                firebaseAuth.signOut();
-                startActivity(new Intent(getApplicationContext(), LoginActivity.class));
-
-            }
-
-        }
+//        if (v == saveB) {
+//            String name = nameET.getText().toString().trim();
+//            String contactNo = contactNoET.getText().toString().trim();
+//            String designation = designationET.getText().toString().trim();
+//            if (user != null) {
+//                Tutor employee = new Tutor(user.getUid(), name, user.getEmail(), "", contactNo, "", designation);
+//                reference.child(user.getUid()).setValue(employee);
+//
+//                Toast.makeText(this, "Information Saved!!", Toast.LENGTH_SHORT).show();
+//            } else {
+//                Toast.makeText(this, "Retry signing in!!", Toast.LENGTH_SHORT).show();
+//                finish();
+//                firebaseAuth.signOut();
+//                startActivity(new Intent(getApplicationContext(), LoginActivity.class));
+//
+//            }
+//
+//        }
         if (v == logOutB) {
 
             firebaseAuth.signOut();
             Intent fbLogOutIntent=new Intent(getApplicationContext(), LoginActivity.class);
-            fbLogOutIntent.putExtra("auth_nature","LogOut");
+            if(providerFlag=='f')
+            {fbLogOutIntent.putExtra("auth_nature","log_out");}
             finish();
             startActivity(fbLogOutIntent);
         }
 
         if(v==imageChooser)
         {
-
-            permissionRequest();
+           RequestPermissions.storagePermissionRequest(this);
             imageChooser();
-        }
-    }
-
-    //PERMISSIONS REQUIRED FOR ACCESSING EXTERNAL STORAGE
-
-    private void permissionRequest() {
-
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE)) {
-
-            } else {
-
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                        MY_PERMISSIONS_REQUEST_EXTERNAL_STORAGE);
-            }
-        }
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-
-            } else {
-
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                        MY_PERMISSIONS_REQUEST_EXTERNAL_STORAGE);
-            }
         }
     }
 
     //IMAGE PICKER WHEN CHOOSE IMAGE BUTTON IS CLICKED
     private void imageChooser() {
 
-        final File root=new File(Environment.getExternalStorageDirectory()+File.separator+"Field Attendance"+File.separator);
+        File root = new File(Environment.getExternalStorageDirectory() + File.separator + "AWK" + File.separator + "Store Picture" + File.separator);
         root.mkdirs();
-        final String fname="profpic"+ System.currentTimeMillis()+".jpg";
-        final File sdImageMainDirectory=new File(root,fname);
-        outputFileUri=Uri.fromFile(sdImageMainDirectory);
+        final String fname = "profilePic" + System.currentTimeMillis() + ".jpg";
+        final File sdImageMainDirectory = new File(root, fname);
+        outputFileUri = Uri.fromFile(sdImageMainDirectory);
 
         //Camera
-        final List<Intent> cameraIntents=new ArrayList<Intent>();
-        final Intent captureIntent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        final PackageManager packageManager=getPackageManager();
-        final List<ResolveInfo> listCam=packageManager.queryIntentActivities(captureIntent,0);
-        for(ResolveInfo res:listCam)
-        {
-            final String packageName=res.activityInfo.packageName;
-            final Intent intent=new Intent(captureIntent);
-            intent.setComponent(new ComponentName(res.activityInfo.packageName,res.activityInfo.name));
-            intent.setPackage(packageName);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT,outputFileUri);
-            cameraIntents.add(intent);
+        final List<Intent> cameraIntents = new ArrayList<>();
+        final Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        final PackageManager packageManager = getPackageManager();
+        final List<ResolveInfo> listCam = packageManager.queryIntentActivities(captureIntent, 0);
+        for (ResolveInfo res : listCam) {
+            final String packageName = res.activityInfo.packageName;
+            final String localPackageName = res.activityInfo.loadLabel(packageManager).toString();
+            if (localPackageName.toLowerCase().equals("camera")) {
+                final Intent intent = new Intent(captureIntent);
+                intent.setComponent(new ComponentName(res.activityInfo.packageName, res.activityInfo.name));
+                intent.setPackage(packageName);
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+                cameraIntents.add(intent);
+            }
         }
-
         // Filesystem.
         final Intent galleryIntent = new Intent();
         galleryIntent.setType("image/*");
@@ -210,7 +173,8 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
 
         // Add the camera options.
         chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, cameraIntents.toArray(new Parcelable[cameraIntents.size()]));
-        startActivityForResult(chooserIntent,PICK_IMAGE_REQUEST_CODE);
+        startActivityForResult(chooserIntent, PICK_IMAGE_REQUEST_CODE);
+
 
 
     }
@@ -238,11 +202,33 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
                 } else {
                     selectedImageUri = data == null ? null : data.getData();
                 }
-                try {
-                    Bitmap bitmap= MediaStore.Images.Media.getBitmap(getContentResolver(),selectedImageUri);
-                    profilePictureIV.setImageBitmap(bitmap);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                CropImage.activity(selectedImageUri)
+                        .setGuidelines(CropImageView.Guidelines.ON)
+                        .start(this);
+            }
+            if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+                CropImage.ActivityResult result = CropImage.getActivityResult(data);
+                if (resultCode == RESULT_OK) {
+                    imageHold = result.getUri();
+                    try {
+                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageHold);
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream);
+                        byte[] bytesBitmap = byteArrayOutputStream.toByteArray();
+                        File temp = File.createTempFile("store", "pic.jpg");
+                        FileOutputStream fileOutputStream = new FileOutputStream(temp);
+                        fileOutputStream.write(bytesBitmap);
+                        fileOutputStream.flush();
+                        fileOutputStream.close();
+                        imageHold = Uri.fromFile(temp);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    profilePictureIV.setImageURI(imageHold);
+                } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
+                    Exception error = result.getError();
+                    Toast.makeText(this, "CROP ERROR:"+error.toString(), Toast.LENGTH_SHORT).show();
                 }
             }
         }

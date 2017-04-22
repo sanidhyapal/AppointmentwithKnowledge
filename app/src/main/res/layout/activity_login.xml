@@ -25,6 +25,31 @@
             android:text="Log In"
             android:textSize="30dp"/>
 
+        <RadioGroup
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:id="@+id/login_role_rg"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/login_student_rb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+               android:layout_marginRight="10sp"
+                android:padding="10sp"
+                android:text="Student" />
+
+            <RadioButton
+                android:id="@+id/login_tutor_rb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:padding="10sp"
+                android:text="Tutor" />
+        </RadioGroup>
+
+
         <android.support.design.widget.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">

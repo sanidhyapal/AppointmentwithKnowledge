@@ -5,31 +5,40 @@ package sanidhya.academic.com.appointmentwithknowledge.model;
  */
 
 public class Tutor {
-    private String id;
+    private String tutorId;
     private String name;
     private String email;
-    private String password;
+    private String experience;
     private String contactNumber;
     private String address;
     private String designation;
+    private String role;
 
-    public Tutor(String id, String name, String email, String password, String contactNumber, String address, String designation) {
+    public Tutor(String tutorId, String name, String email, String contactNumber,String experience) {
 
-        this.id = id;
+        this.tutorId = tutorId;
         this.name = name;
         this.email = email;
-        this.password = password;
+        this.experience = experience;
         this.contactNumber = contactNumber;
-        this.address = address;
-        this.designation = designation;
+        this.role="tutor";
+
     }
 
-    public String getId() {
-        return id;
+    public String getExperience() {
+        return experience;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
+    public String getTutorId() {
+        return tutorId;
+    }
+
+    public void setTutorId(String tutorId) {
+        this.tutorId = tutorId;
     }
 
     public String getName() {
@@ -46,14 +55,6 @@ public class Tutor {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getContactNumber() {
