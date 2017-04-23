@@ -125,7 +125,7 @@ public class TutorSignUpFragment extends Fragment implements View.OnClickListene
                             Tutor newTutor = new Tutor(user.getUid(), tutorName, email, tutorContactNumber,tutorExperience);
                             userDetails.setValue(newTutor);
                             DatabaseReference userRole=instanceReference.child("role").child("tutor");
-                            userRole.child(email).setValue(user.getUid()).addOnCompleteListener(new OnCompleteListener<Void>() {
+                            userRole.child(user.getUid()).setValue(email).addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
                                 public void onComplete(@NonNull Task<Void> task) {
                                     if(task.isSuccessful())

@@ -35,12 +35,15 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
 
 
+    private final static int PROVIDER_FIREBASE = 0;
+    private final static int PROVIDER_FACEBOOK = 1;
+    private final static int PROVIDER_GOOGLE = 2;
     private Button loginB;
     private LoginButton fbLoginB;
     private EditText emailET;
@@ -51,9 +54,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     private FirebaseUser user;
     private CallbackManager fbCallbackManager;
     private RadioGroup roleRG;
-    private RadioButton roleRB;
-    private boolean authenticationResult = false;
-
+    private int authenticationResult = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +63,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         setContentView(R.layout.activity_login);
 
         firebaseAuth = FirebaseAuth.getInstance();
-        user=firebaseAuth.getCurrentUser();
+        user = firebaseAuth.getCurrentUser();
         fbCallbackManager = CallbackManager.Factory.create();
         String authNature = getIntent().getStringExtra("auth_nature");
         if (authNature != null) {
@@ -71,20 +72,16 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             }
         }
 
-        if (user!= null) {
-            String userId =user.getUid();
+        if (user != null) {
+            String userId = user.getUid();
             if (authNature.equals("student_login")) {
-                if (authenticateUser("student", userId)) {
-                    finish();
-                    startActivity(new Intent(this, ProfileActivity.class));
+                authenticateUser("student", userId);
                 }
-            } else if (authNature.equals("tutor_login")) {
-                if (authenticateUser("tutor", userId)) {
-                    finish();
-                    startActivity(new Intent(this, ProfileActivity.class));
-                }
+             else if (authNature.equals("tutor_login")) {
+                authenticateUser("tutor", userId);
+
             } else {
-                    //TODO something when app opens directly to login
+                //TODO something when app opens directly to login
             }
         }
 
@@ -124,6 +121,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
 
     private void fbHandleUserAccessToken(AccessToken accessToken) {
 
+        progressDialog.setMessage("Contacting Mark Zuckerberg!!");
         progressDialog.show();
         AuthCredential fbCredential = FacebookAuthProvider.getCredential(accessToken.getToken());
         firebaseAuth.signInWithCredential(fbCredential).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
@@ -132,8 +130,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 if (task.isSuccessful()) {
                     progressDialog.dismiss();
                     Toast.makeText(LoginActivity.this, "User logged in through Facebook !!", Toast.LENGTH_LONG).show();
-                    finish();
-                    startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
+                    toProfileActivity(PROVIDER_FACEBOOK);
                 } else {
                     progressDialog.dismiss();
                     Toast.makeText(LoginActivity.this, "Facebook Login Failed!!", Toast.LENGTH_LONG).show();
@@ -143,22 +140,32 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         });
     }
 
-    private void toProfileActivity() {
+    private void toProfileActivity(int providerName) {
         int roleId = roleRG.getCheckedRadioButtonId();
-        roleRB = (RadioButton) findViewById(roleId);
-        if (roleRB.getText() == "Student"&&authenticateUser("student",user.getUid())) {
-            startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
-        } else if (roleRB.getText() == "Tutor"&&authenticateUser("tutor",user.getUid())) {
-            startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
-        } else {
-            if(roleId==-1){
-            Toast.makeText(this, "Select your role", Toast.LENGTH_SHORT).show();
-            }
-            else
+        RadioButton roleRB = (RadioButton) findViewById(roleId);
+        if (roleRB.getId() == R.id.login_student_rb) {
+            if (providerName == PROVIDER_FIREBASE)
             {
-                Toast.makeText(this, "No "+roleRB.getText()+" of matching email is found!!", Toast.LENGTH_LONG).show();
+                authenticateUser("student", user.getUid());
+            } else if (providerName == PROVIDER_FACEBOOK) {
+                finish();
+                startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
             }
-    }
+            }
+         else if (roleRB.getId() == R.id.login_tutor_rb) {
+            if (providerName == PROVIDER_FIREBASE){
+                authenticateUser("tutor", user.getUid());
+            } else if (providerName == PROVIDER_FACEBOOK) {
+                finish();
+                startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
+            }
+            }
+            else {
+            if (roleId == -1) {
+                Toast.makeText(this, "Select your role", Toast.LENGTH_SHORT).show();
+            }
+        }
+
     }
 
     private void simpleLoginUser() {
@@ -185,8 +192,8 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
                             progressDialog.dismiss();
-                            finish();
-                            toProfileActivity();
+                            user = task.getResult().getUser();
+                            toProfileActivity(PROVIDER_FIREBASE);
                         } else {
                             progressDialog.dismiss();
                             Toast.makeText(LoginActivity.this, "Login Failed!!", Toast.LENGTH_SHORT).show();
@@ -216,22 +223,60 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         fbCallbackManager.onActivityResult(requestCode, resultCode, data);
     }
 
-    private boolean authenticateUser(String role, final String userId) {
+    private void authenticateUser(final String role, final String userId) {
         DatabaseReference roleReference = FirebaseDatabase.getInstance().getReference().child("role").child(role);
+        progressDialog.setMessage("Authenticating User!!");
+        progressDialog.show();
         roleReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 HashMap<String, String> map = (HashMap<String, String>) dataSnapshot.getValue();
-                ArrayList userIds = (ArrayList) map.keySet();
-                if (userIds.contains(userId))
-                    authenticationResult = true;
+                progressDialog.dismiss();
+                if (map != null) {
+                    Set<String> userIds = map.keySet();
+                    if (userIds.contains(userId))
+                        authenticationResult = 1;
+                    else
+                        authenticationResult=0;
+                }
+                authenticateUserResponse(role,authenticationResult);
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
-
+                progressDialog.dismiss();
             }
         });
-        return authenticationResult;
+    }
+
+    private void authenticateUserResponse(String role, int authenticationResult) {
+        switch (role)
+        {
+            case "student":
+                switch (authenticationResult)
+                {
+                    case 0:
+                        firebaseAuth.signOut();
+                        Toast.makeText(this, "No student of matching email is found!!", Toast.LENGTH_LONG).show();
+                        break;
+                    case 1:
+                        finish();
+                        startActivity(new Intent(getApplicationContext(),ProfileActivity.class));
+                }
+                break;
+            case "tutor":
+                switch (authenticationResult)
+                {
+                    case 0:
+                        firebaseAuth.signOut();
+                        Toast.makeText(this, "No tutor of matching email is found!!", Toast.LENGTH_LONG).show();
+                        break;
+                    case 1:
+                        finish();
+                        startActivity(new Intent(getApplicationContext(),ProfileActivity.class));
+                }
+                break;
+        }
+
     }
 }

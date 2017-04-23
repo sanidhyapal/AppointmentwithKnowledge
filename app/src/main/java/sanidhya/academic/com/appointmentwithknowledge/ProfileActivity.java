@@ -14,7 +14,6 @@ import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,22 +33,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import sanidhya.academic.com.appointmentwithknowledge.model.Tutor;
-
 
 public class ProfileActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final int PICK_IMAGE_REQUEST_CODE = 1;
     private TextView emailTV;
-    private EditText nameET;
-    private EditText contactNoET;
-    private EditText designationET;
+    private TextView nameTV;
+    private TextView contactNumberTV;
     private Button saveB;
     private Button logOutB;
     private FirebaseAuth firebaseAuth;
     private DatabaseReference reference;
     private ImageView profilePictureIV;
-    private Button imageChooser;
+    private Button imageChooserB;
     private Uri imageHold=null;
     private Uri outputFileUri;
     private FirebaseUser user;
@@ -64,15 +60,15 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
         reference = FirebaseDatabase.getInstance().getReference();
         user=firebaseAuth.getCurrentUser();
         emailTV = (TextView) findViewById(R.id.profile_email_tv);
-        nameET = (EditText) findViewById(R.id.profile_name_et);
-        contactNoET = (EditText) findViewById(R.id.profile_contact_number_et);
-        designationET = (EditText) findViewById(R.id.profile_designation_et);
+        nameTV = (TextView) findViewById(R.id.profile_name_et);
+        contactNumberTV = (TextView) findViewById(R.id.profile_contact_number_et);
         profilePictureIV=(ImageView)findViewById(R.id.profile_photo_iv);
-        imageChooser=(Button)findViewById(R.id.profile_image_chooser_b);
+        imageChooserB =(Button)findViewById(R.id.profile_image_chooser_b);
         logOutB = (Button) findViewById(R.id.profile_log_out_b);
         saveB = (Button) findViewById(R.id.profile_save_b);
+        saveB.setVisibility(View.GONE);
         saveB.setOnClickListener(this);
-        imageChooser.setOnClickListener(this);
+        imageChooserB.setOnClickListener(this);
         logOutB.setOnClickListener(this);
         if(user!=null)
         {
@@ -84,7 +80,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
                     providerFlag='f';
                     Toast.makeText(this, "In Facebook", Toast.LENGTH_LONG).show();
                     Picasso.with(this).load(user.getPhotoUrl()).into(profilePictureIV);
-                    nameET.setText(user.getDisplayName());
+                    nameTV.setText(user.getDisplayName());
                     emailTV.setText(user.getEmail());
                 }
             }
@@ -94,6 +90,9 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
         {
             if (user != null) {
                 emailTV.setText(user.getEmail());
+                nameTV.setText("Ye Baad Mein aayega");
+                contactNumberTV.setText("Ye Bbi Baad Mein Aayega ye");
+                Picasso.with(this).load(user.getPhotoUrl()).into(profilePictureIV);
             }
 
         }
@@ -103,10 +102,9 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
     @Override
     public void onClick(View v) {
 
-//        if (v == saveB) {
-//            String name = nameET.getText().toString().trim();
-//            String contactNo = contactNoET.getText().toString().trim();
-//            String designation = designationET.getText().toString().trim();
+        if (v == saveB) {
+//            String name = nameTV.getText().toString().trim();
+//            String contactNo = contactNumberTV.getText().toString().trim();
 //            if (user != null) {
 //                Tutor employee = new Tutor(user.getUid(), name, user.getEmail(), "", contactNo, "", designation);
 //                reference.child(user.getUid()).setValue(employee);
@@ -119,8 +117,8 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
 //                startActivity(new Intent(getApplicationContext(), LoginActivity.class));
 //
 //            }
-//
-//        }
+
+        }
         if (v == logOutB) {
 
             firebaseAuth.signOut();
@@ -131,7 +129,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
             startActivity(fbLogOutIntent);
         }
 
-        if(v==imageChooser)
+        if(v== imageChooserB)
         {
            RequestPermissions.storagePermissionRequest(this);
             imageChooser();
