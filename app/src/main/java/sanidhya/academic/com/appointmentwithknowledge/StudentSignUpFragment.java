@@ -20,6 +20,9 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.DatabaseReference;
@@ -57,7 +60,7 @@ public class StudentSignUpFragment extends android.support.v4.app.Fragment imple
         View v = inflater.inflate(R.layout.student_fragment_sign_up, null, false);
         activity = getActivity();
         instanceReference = FirebaseDatabase.getInstance().getReference();
-        firebaseAuth=FirebaseAuth.getInstance();
+        firebaseAuth = FirebaseAuth.getInstance();
         user = firebaseAuth.getCurrentUser();
         if (user != null) {
             activity.finish();
@@ -121,28 +124,53 @@ public class StudentSignUpFragment extends android.support.v4.app.Fragment imple
                             progressDialog.dismiss();
                             Toast.makeText(activity, "user registered!!", Toast.LENGTH_SHORT).show();
                             user = FirebaseAuth.getInstance().getCurrentUser();
-                            DatabaseReference userDetails =instanceReference.child("student").child(user.getUid());
+                            DatabaseReference userDetails = instanceReference.child("student").child(user.getUid());
                             Student newStudent = new Student(user.getUid(), studentName, studentContactNumber, studentSchoolName, email);
                             userDetails.setValue(newStudent);
-                            DatabaseReference userRole=instanceReference.child("role").child("student");
+                            DatabaseReference userRole = instanceReference.child("role").child("student");
                             userRole.child(user.getUid()).setValue(email).addOnCompleteListener(new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
-                if(task.isSuccessful())
-                {
-                    Intent toLoginActivity=new Intent(activity,LoginActivity.class);
-                    toLoginActivity.putExtra("auth_nature","student_login");
-                    activity.finish();
-                    startActivity(toLoginActivity);
-                }
-            }
-        });
+                                @Override
+                                public void onComplete(@NonNull Task<Void> task) {
+                                    if (task.isSuccessful()) {
+                                        UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+                                                .setDisplayName("student")
+                                                .build();
 
-    } else {
-        progressDialog.dismiss();
-        Toast.makeText(activity, "user registration failed!!", Toast.LENGTH_SHORT).show();
-    }
-}
+                                        user.updateProfile(profileUpdates)
+                                                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        if (task.isSuccessful()) {
+                                                            Toast.makeText(activity, "WTF!! One More Student", Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+                                                });
+
+                                        Intent toLoginActivity = new Intent(activity, LoginActivity.class);
+                                        toLoginActivity.putExtra("auth_nature", "student_login");
+                                        activity.finish();
+                                        startActivity(toLoginActivity);
+                                    }
+                                }
+                            });
+
+                        } else {
+                            progressDialog.dismiss();
+                            if (!task.isSuccessful()) {
+                                try {
+                                    throw task.getException();
+                                } catch (FirebaseAuthWeakPasswordException e) {
+                                    Toast.makeText(activity, "Weak Password!!", Toast.LENGTH_SHORT).show();
+                                } catch (FirebaseAuthInvalidCredentialsException e) {
+                                    Toast.makeText(activity, "Invalid Credential!!", Toast.LENGTH_SHORT).show();
+                                } catch (FirebaseAuthUserCollisionException e) {
+                                    Toast.makeText(activity, "Email id is already registered", Toast.LENGTH_SHORT).show();
+                                } catch (Exception e) {
+                                    Toast.makeText(activity, "user registration failed!!", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        }
+                    }
                 });
 
     }

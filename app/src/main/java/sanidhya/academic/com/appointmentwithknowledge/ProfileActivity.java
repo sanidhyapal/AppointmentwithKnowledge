@@ -17,6 +17,8 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.facebook.login.LoginManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserInfo;
@@ -122,6 +124,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
         if (v == logOutB) {
 
             firebaseAuth.signOut();
+            LoginManager.getInstance().logOut();
             Intent fbLogOutIntent=new Intent(getApplicationContext(), LoginActivity.class);
             if(providerFlag=='f')
             {fbLogOutIntent.putExtra("auth_nature","log_out");}

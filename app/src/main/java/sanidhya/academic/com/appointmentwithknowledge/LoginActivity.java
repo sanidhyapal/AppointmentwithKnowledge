@@ -2,11 +2,14 @@ package sanidhya.academic.com.appointmentwithknowledge;
 
 
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -19,6 +22,8 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
+import com.facebook.GraphRequest;
+import com.facebook.GraphResponse;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
@@ -29,14 +34,23 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.ProviderQueryResult;
+import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
+
+import sanidhya.academic.com.appointmentwithknowledge.model.Student;
+import sanidhya.academic.com.appointmentwithknowledge.model.Tutor;
 
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -55,6 +69,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     private CallbackManager fbCallbackManager;
     private RadioGroup roleRG;
     private int authenticationResult = 0;
+    private DatabaseReference instanceReference;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,36 +89,112 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         fbLoginB.setReadPermissions("email");
         fbLoginB.setOnClickListener(this);
         firebaseAuth = FirebaseAuth.getInstance();
+        instanceReference = FirebaseDatabase.getInstance().getReference();
         user = firebaseAuth.getCurrentUser();
         fbCallbackManager = CallbackManager.Factory.create();
         String authNature = getIntent().getStringExtra("auth_nature");
-        if (authNature != null) {
-            if (authNature.equals("log_out")) {
-                LoginManager.getInstance().logOut();
-            }
+        if (user != null) {
+            String userId = user.getUid();
 
-
-            if (user != null) {
-                String userId = user.getUid();
-                if (authNature.equals("student_login")) {
+            if (authNature != null) {
+                if (authNature.equals("log_out")) {
+                    firebaseAuth.signOut();
+                    LoginManager.getInstance().logOut();
+                } else if (authNature.equals("student_login")) {
                     authenticateUser("student", userId);
                 } else if (authNature.equals("tutor_login")) {
                     authenticateUser("tutor", userId);
-
-                } else {
-                    //TODO something when app opens directly to login
+                }
+            } else {
+                if (user.getDisplayName() != null) {
+                    switch (user.getDisplayName()) {
+                        case "student":
+                            finish();
+                            startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
+                            break;
+                        case "tutor":
+                            finish();
+                            startActivity(new Intent(getApplicationContext(), ProfileActivity.class));
+                            break;
+                    }
                 }
             }
-        }
-
-
+        } else
+            selectRoleAlertBox();
     }
 
     private void fbLoginUser() {
         fbLoginB.registerCallback(fbCallbackManager, new FacebookCallback<LoginResult>() {
             @Override
-            public void onSuccess(LoginResult loginResult) {
-                fbHandleUserAccessToken(loginResult.getAccessToken());
+            public void onSuccess(final LoginResult loginResult) {
+                Toast.makeText(LoginActivity.this, "in call back manager", Toast.LENGTH_SHORT).show();
+
+                final GraphRequest request = GraphRequest.newMeRequest(loginResult.getAccessToken(), new GraphRequest.GraphJSONObjectCallback() {
+                    @Override
+                    public void onCompleted(JSONObject object, GraphResponse response) {
+                        JSONObject jsonObject = response.getJSONObject();
+                        try {
+                            if (jsonObject != null) {
+                                String userEmail = jsonObject.getString("email");
+                                Log.d("userEmail", userEmail);
+
+                                firebaseAuth.fetchProvidersForEmail(userEmail).addOnCompleteListener(new OnCompleteListener<ProviderQueryResult>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<ProviderQueryResult> task) {
+                                        List<String> providerList = task.getResult().getProviders();
+                                        if (providerList.isEmpty()) {
+                                            fbHandleUserAccessToken(loginResult.getAccessToken());
+                                        } else if (providerList.contains("facebook.com")) {
+                                            progressDialog.setMessage("Contacting Mark Zuckerberg!!");
+                                            progressDialog.show();
+                                            AuthCredential fbCredential = FacebookAuthProvider.getCredential(loginResult.getAccessToken().getToken());
+                                            firebaseAuth.signInWithCredential(fbCredential).addOnCompleteListener(LoginActivity.this, new OnCompleteListener<AuthResult>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<AuthResult> task) {
+                                                    if (task.isSuccessful()) {
+                                                        progressDialog.dismiss();
+                                                        user = firebaseAuth.getCurrentUser();
+                                                        int roleId = roleRG.getCheckedRadioButtonId();
+                                                        String userRole = user.getDisplayName();
+                                                        RadioButton roleRB = (RadioButton) findViewById(roleId);
+                                                        String selectedRole = roleRB.getText().toString().toLowerCase();
+                                                        if (userRole.equals(selectedRole))
+                                                            toProfileActivity(PROVIDER_FACEBOOK);
+                                                        else {
+                                                            firebaseAuth.signOut();
+                                                            LoginManager.getInstance().logOut();
+                                                            Toast.makeText(LoginActivity.this, "No " + selectedRole + " found with this account!! Please check role", Toast.LENGTH_LONG).show();
+
+                                                        }
+                                                    } else {
+                                                        progressDialog.dismiss();
+                                                        firebaseAuth.signOut();
+                                                        LoginManager.getInstance().logOut();
+                                                        Toast.makeText(LoginActivity.this, "Facebook Login Failed!!", Toast.LENGTH_LONG).show();
+                                                    }
+
+                                                }
+                                            });
+                                        }
+                                        else
+                                        {
+                                            firebaseAuth.signOut();
+                                            LoginManager.getInstance().logOut();
+                                            Toast.makeText(LoginActivity.this, "Email id already registered!!Try another email", Toast.LENGTH_LONG).show();
+                                        }
+                                    }
+                                });
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                Bundle parameters = new Bundle();
+                parameters.putString("fields", "id,name,link,email,picture");
+                request.setParameters(parameters);
+                request.executeAsync();
+
             }
 
             @Override
@@ -118,6 +209,30 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         });
     }
 
+    private void selectRoleAlertBox() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
+        builder.setMessage("Select Your Role:")
+                .setPositiveButton("TUTOR", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        RadioButton tutorRB = (RadioButton) findViewById(R.id.login_tutor_rb);
+                        tutorRB.setChecked(true);
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton("STUDENT", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        RadioButton studentRB = (RadioButton) findViewById(R.id.login_student_rb);
+                        studentRB.setChecked(true);
+                        dialog.dismiss();
+                    }
+                });
+        AlertDialog roleAlertDialog = builder.create();
+        roleAlertDialog.setCanceledOnTouchOutside(false);
+        roleAlertDialog.show();
+    }
+
     private void fbHandleUserAccessToken(AccessToken accessToken) {
 
         progressDialog.setMessage("Contacting Mark Zuckerberg!!");
@@ -128,9 +243,71 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             public void onComplete(@NonNull Task<AuthResult> task) {
                 if (task.isSuccessful()) {
                     progressDialog.dismiss();
-                    Toast.makeText(LoginActivity.this, "User logged in through Facebook !!", Toast.LENGTH_LONG).show();
-                    toProfileActivity(PROVIDER_FACEBOOK);
+                    user = firebaseAuth.getCurrentUser();
+                    int roleId = roleRG.getCheckedRadioButtonId();
+                    if (roleId == -1) {
+                        firebaseAuth.signOut();
+                        LoginManager.getInstance().logOut();
+                        Toast.makeText(LoginActivity.this, "Select your role", Toast.LENGTH_SHORT).show();
+                    } else {
+                        RadioButton roleRB = (RadioButton) findViewById(roleId);
+                        if (roleRB.getId() == R.id.login_student_rb) {
+                            fbLoginDetailsSave("student");
+                        } else if (roleRB.getId() == R.id.login_tutor_rb) {
+                            fbLoginDetailsSave("tutor");
+                        }
+                    }
+
                 } else {
+                    progressDialog.dismiss();
+                    firebaseAuth.signOut();
+                    LoginManager.getInstance().logOut();
+                    Toast.makeText(LoginActivity.this, "Facebook Login Failed!!", Toast.LENGTH_LONG).show();
+                }
+
+            }
+        });
+    }
+
+    private void fbLoginDetailsSave(final String role) {
+        progressDialog.setMessage("Saving your details in database");
+        progressDialog.show();
+        DatabaseReference userDetails = instanceReference.child(role).child(user.getUid());
+        if (role.equals("student")) {
+            Student newStudent = new Student(user.getUid(), user.getDisplayName(), "", "", user.getEmail());
+            userDetails.setValue(newStudent);
+        } else if (role.equals("tutor")) {
+            Tutor newTutor = new Tutor(user.getUid(), user.getDisplayName(), user.getEmail(), "", "");
+            userDetails.setValue(newTutor);
+        }
+        DatabaseReference userRole = instanceReference.child("role").child(role);
+        userRole.child(user.getUid()).setValue(user.getEmail()).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+                            .setDisplayName(role)
+                            .build();
+
+                    user.updateProfile(profileUpdates)
+                            .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                @Override
+                                public void onComplete(@NonNull Task<Void> task) {
+                                    if (task.isSuccessful()) {
+                                        progressDialog.dismiss();
+                                        Toast.makeText(LoginActivity.this, "One more lazy " + role, Toast.LENGTH_SHORT).show();
+                                        toProfileActivity(PROVIDER_FACEBOOK);
+                                    }
+                                    else {
+                                        progressDialog.dismiss();
+                                        firebaseAuth.signOut();
+                                        LoginManager.getInstance().logOut();
+                                        Toast.makeText(LoginActivity.this, "Facebook Login Failed!!", Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            });
+                }
+                else {
                     progressDialog.dismiss();
                     firebaseAuth.signOut();
                     LoginManager.getInstance().logOut();
@@ -145,7 +322,6 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         int roleId = roleRG.getCheckedRadioButtonId();
         RadioButton roleRB = (RadioButton) findViewById(roleId);
         if (roleId == -1) {
-
             firebaseAuth.signOut();
             LoginManager.getInstance().logOut();
             Toast.makeText(this, "Select your role", Toast.LENGTH_SHORT).show();
@@ -207,7 +383,11 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     public void onClick(View v) {
 
         if (v == loginB) {
-            simpleLoginUser();
+            int roleId = roleRG.getCheckedRadioButtonId();
+            if (roleId == -1) {
+                Toast.makeText(this, "Select your role", Toast.LENGTH_SHORT).show();
+            } else
+                simpleLoginUser();
         } else if (v == fbLoginB) {
             fbLoginUser();
         } else if (v == signUpTV) {

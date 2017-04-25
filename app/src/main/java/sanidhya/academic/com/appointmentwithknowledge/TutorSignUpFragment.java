@@ -21,7 +21,11 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -130,6 +134,19 @@ public class TutorSignUpFragment extends Fragment implements View.OnClickListene
                                 public void onComplete(@NonNull Task<Void> task) {
                                     if(task.isSuccessful())
                                     {
+                                        UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
+                                            .setDisplayName("tutor")
+                                            .build();
+
+                                        user.updateProfile(profileUpdates)
+                                                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                    @Override
+                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                        if (task.isSuccessful()) {
+                                                            Toast.makeText(activity, "Hahaha Welcome Tutor", Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+                                                });
                                         Intent toLoginActivity=new Intent(activity,LoginActivity.class);
                                         toLoginActivity.putExtra("auth_nature","tutor_login");
                                         activity.finish();
@@ -140,7 +157,21 @@ public class TutorSignUpFragment extends Fragment implements View.OnClickListene
 
                         } else {
                             progressDialog.dismiss();
-                            Toast.makeText(activity, "user registration failed!!", Toast.LENGTH_SHORT).show();
+
+                            progressDialog.dismiss();
+                            if (!task.isSuccessful()) {
+                                try {
+                                    throw task.getException();
+                                } catch (FirebaseAuthWeakPasswordException e) {
+                                    Toast.makeText(activity, "Weak Password!!", Toast.LENGTH_SHORT).show();
+                                } catch (FirebaseAuthInvalidCredentialsException e) {
+                                    Toast.makeText(activity, "Invalid Credential!!", Toast.LENGTH_SHORT).show();
+                                } catch (FirebaseAuthUserCollisionException e) {
+                                    Toast.makeText(activity, "Email id is already registered", Toast.LENGTH_LONG).show();
+                                } catch (Exception e) {
+                                    Toast.makeText(activity, "user registration failed!!", Toast.LENGTH_SHORT).show();
+                                }
+                            }
                         }
                     }
                 });
